@@ -46,7 +46,7 @@ namespace Aws
                 StopPolling();
             }
 
-            virtual MESSAGE_TYPE Top() const = 0;
+            virtual bool Top(MESSAGE_TYPE&) const = 0;
             virtual void Delete(const MESSAGE_TYPE&) = 0;
             virtual void Push(const MESSAGE_TYPE&) = 0;
 
@@ -107,18 +107,28 @@ namespace Aws
                 while(m_continue)
                 {
                     auto start = std::chrono::system_clock::now();
-                    MESSAGE_TYPE topMessage = Top();
-                    bool deleteMessage = false;
-                    
                     auto& receivedHandler = GetMessageReceivedEventHandler();
-                    if (receivedHandler)
-                    {
-                        receivedHandler(this, topMessage, deleteMessage);
-                    }
 
-                    if (deleteMessage)
+                    while(m_continue)
                     {
-                        Delete(topMessage);
+                        MESSAGE_TYPE topMessage;
+                        bool messageReceived = Top(topMessage);
+                        bool deleteMessage = false;
+
+                        if(!messageReceived)
+                        {
+                            break;
+                        }
+
+                        if(receivedHandler)
+                        {
+                            receivedHandler(this, topMessage, deleteMessage);
+                        }
+
+                        if(deleteMessage)
+                        {
+                            Delete(topMessage);
+                        }
                     }
 
                     if(m_continue)
